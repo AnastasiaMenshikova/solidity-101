@@ -34,6 +34,11 @@ contract SimpleStaking {
         _;
     }
 
+    modifier treasuryNotEmpty(){
+        require(treasury > 0, "Treasury empty");
+        _;
+    }
+
     /* ========== CONSTRUCTOR ========== */
 
     constructor() {
@@ -45,10 +50,9 @@ contract SimpleStaking {
     /**
      * @dev Method for staking ETH
      */
-    function stake() public payable onlyWhenNotPaused {
+    function stake() public payable onlyWhenNotPaused treasuryNotEmpty{
         require(msg.value > 0, "Can't stake 0 ether");
         require(msg.value < treasury, "Try to stake less ETH");
-        require(treasury > 0, "Nothing to earn. Add liquidity to treasury");
 
         balances[msg.sender] += msg.value;
         treasury += msg.value;
@@ -82,7 +86,7 @@ contract SimpleStaking {
 
     /**
      * @dev setPaused makes the contract paused or unpaused
-     * @param pass `true` to pause contract or `false` to unpause
+     * @param val pass `true` to pause contract or `false` to unpause
      */
     function setPaused(bool val) public onlyOwner {
         _paused = val;
@@ -99,8 +103,7 @@ contract SimpleStaking {
     /**
      * @dev Additional method that remove liquidity to reward pool by owner of the contract
      */
-    function removeLiquidity() public payable onlyOwner {
-        require(treasury > 0, "Nothing to withdrawal");
+    function removeLiquidity() public payable onlyOwner treasuryNotEmpty{
         (bool success, ) = msg.sender.call{value: treasury}("");
         require(success, "Failed to withdraw");
         treasury = 0;
@@ -109,11 +112,26 @@ contract SimpleStaking {
     /* ========== VIEWS ========== */
 
     /**
+     * @dev This function will calculate interest with every minute passed
+     */
+    function calculateInterest(uint256 staked, uint256 period)
+        private
+        view
+        returns (uint256)
+    {
+        if (staked == 0 || treasury == 0) {
+            return 0;
+        }
+        return (((staked * interestRate) * (period / 60)) / 100);
+    }
+
+    /**
      * @dev Returns the time left before the deadline for the frontend
      */
     function timeLeft() public view returns (uint256) {
         return block.timestamp < deadline ? deadline - block.timestamp : 0;
     }
+
 
     /**
      * @dev Shows staked amount
@@ -136,19 +154,6 @@ contract SimpleStaking {
         return 0;
     }
 
-    /**
-     * @dev This function will calculate interest with every minute passed
-     */
-    function calculateInterest(uint256 staked, uint256 period)
-        private
-        view
-        returns (uint256)
-    {
-        if (staked == 0 || treasury == 0) {
-            return 0;
-        }
-        return (((staked * interestRate) * (period / 60)) / 100);
-    }
 
     // special function that receives eth
     receive() external payable {}
