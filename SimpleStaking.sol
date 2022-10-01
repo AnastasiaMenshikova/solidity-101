@@ -74,15 +74,16 @@ contract SimpleStaking {
 
         uint256 withdrawalAmount = earned(msg.sender) + balances[msg.sender];
 
-        (bool success, ) = msg.sender.call{value: withdrawalAmount}("");
-        require(success, "Failed to withdraw");
         treasury -= withdrawalAmount;
         balances[msg.sender] = 0;
+
+        (bool success, ) = msg.sender.call{value: withdrawalAmount}("");
+        require(success, "Failed to withdraw");
     }
 
     /**
      * @dev setPaused makes the contract paused or unpaused
-     * @param pass `true` to pause contract or `false` to unpause
+     * @param val `true` to pause contract or `false` to unpause
      */
     function setPaused(bool val) public onlyOwner {
         _paused = val;
@@ -101,9 +102,10 @@ contract SimpleStaking {
      */
     function removeLiquidity() public payable onlyOwner {
         require(treasury > 0, "Nothing to withdrawal");
+        treasury = 0;
+        
         (bool success, ) = msg.sender.call{value: treasury}("");
         require(success, "Failed to withdraw");
-        treasury = 0;
     }
 
     /* ========== VIEWS ========== */
